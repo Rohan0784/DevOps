@@ -5,3 +5,5 @@ Testing new CI workflow pipeline
 ![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/Rohan0784/DevOps/main.yml?branch=main)
 [![License](https://img.shields.io/github/license/Rohan0784/DevOps)](https://github.com/Rohan0784/DevOps/blob/main/LICENSE)
 [![Releases](https://img.shields.io/github/release/Rohan0784/DevOps)](https://github.com/Rohan0784/DevOps/blob/main/Releases)
+# DevOps
+![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/Rohan0784/DevOps/main.yml?branch=develop/style=flat-square)
