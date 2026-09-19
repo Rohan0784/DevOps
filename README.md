@@ -8,5 +8,4 @@ Testing new CI workflow pipeline
 [![Releases](https://img.shields.io/github/release/Rohan0784/DevOps)](https://github.com/Rohan0784/DevOps/blob/main/Releases)
 # DevOps
 
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Rohan0784/DevOps/main.yml?branch=develop&style=flat-square)
-
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Rohan0784/DevOps/main.yml?branch=develop&style=flat-square)
