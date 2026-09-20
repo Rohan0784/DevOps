@@ -7,29 +7,25 @@ import org.bson.Document;
 
 public class App {
     public static void main(String[] args) {
-        // Connect to MongoDB using try-with-resources to ensure auto-closing
-        try (MongoClient mongoClient = new MongoClient("localhost", 27000)) {
+        // Connect to MongoDB
+        MongoClient mongoClient = new MongoClient("mongo-dbserver");
 
-            // Get database
-            MongoDatabase database = mongoClient.getDatabase("mydb");
+        // Get database and collection
+        MongoDatabase database = mongoClient.getDatabase("mydb");
+        MongoCollection<Document> collection = database.getCollection("test");
 
-            // Get collection
-            MongoCollection<Document> collection = database.getCollection("test");
+        // Create a document
+        Document doc = new Document("name", "Kevin Sim")
+                .append("class", "DevOps")
+                .append("year", "2024")
+                .append("result", new Document("CW", 95).append("EX", 85));
 
-            // Create document
-            Document doc = new Document("name", "Kevin Sim")
-                    .append("class", "DevOps")
-                    .append("year", "2024")
-                    .append("result", new Document("CW", 95).append("EX", 85));
+        // Insert and query
+        collection.insertOne(doc);
+        Document myDoc = collection.find().first();
+        System.out.println(myDoc.toJson());
 
-            // Insert document
-            collection.insertOne(doc);
-
-            // Fetch and print document
-            Document myDoc = collection.find().first();
-            if (myDoc != null) {
-                System.out.println(myDoc.toJson());
-            }
-        }
+        // Close connection
+        mongoClient.close();
     }
 }
