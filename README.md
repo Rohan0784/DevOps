@@ -1,3 +1,6 @@
+![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/Rohan0784/DevOps/main.yml)
+=branch%3Adevelop)
+
 # DevOps
 
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Rohan0784/DevOps/main.yml?branch=develop&style=flat-square)](https://github.com/Rohan0784/DevOps/actions/workflows/main.yml)
