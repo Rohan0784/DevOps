@@ -7,25 +7,31 @@ import org.bson.Document;
 
 public class App {
     public static void main(String[] args) {
-        // Connect to MongoDB
-        MongoClient mongoClient = new MongoClient("mongo-dbserver");
+        // Read host from environment variable or fall back to "mongo-dbserver"
+        String dbHost = System.getenv("MONGO_HOST") != null ? System.getenv("MONGO_HOST") : "mongo-dbserver";
 
-        // Get database and collection
-        MongoDatabase database = mongoClient.getDatabase("mydb");
-        MongoCollection<Document> collection = database.getCollection("test");
+        // Try-with-resources handles closing the connection automatically
+        try (MongoClient mongoClient = new MongoClient(dbHost, 27017)) {
 
-        // Create a document
-        Document doc = new Document("name", "Kevin Sim")
-                .append("class", "DevOps")
-                .append("year", "2024")
-                .append("result", new Document("CW", 95).append("EX", 85));
+            MongoDatabase database = mongoClient.getDatabase("mydb");
+            MongoCollection<Document> collection = database.getCollection("test");
 
-        // Insert and query
-        collection.insertOne(doc);
-        Document myDoc = collection.find().first();
-        System.out.println(myDoc.toJson());
+            Document doc = new Document("name", "Kevin Sim")
+                    .append("class", "DevOps")
+                    .append("year", "2024")
+                    .append("result", new Document("CW", 95).append("EX", 85));
 
-        // Close connection
-        mongoClient.close();
+            collection.insertOne(doc);
+
+            // Fetch document with null check
+            Document myDoc = collection.find().first();
+            if (myDoc != null) {
+                System.out.println(myDoc.toJson());
+            } else {
+                System.out.println("No document found in collection.");
+            }
+        } catch (Exception e) {
+            System.err.println("Error connecting to MongoDB: " + e.getMessage());
+        }
     }
 }
