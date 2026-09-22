@@ -34,3 +34,7 @@ jobs:
 
       - name: Run image
         run: docker run --network se-methods --name devopscontainer se_methods
+
+      - name: View application logs
+        if: always()
+        run: docker logs devopscontainer
