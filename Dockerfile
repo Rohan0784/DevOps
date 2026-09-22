@@ -1,3 +1,4 @@
 FROM amazoncorretto:17
-COPY target/*.jar app.jar
-ENTRYPOINT ["java", "-jar", "app.jar"]
+COPY ./target/seMethod-0.1.0.2-jar-with-dependencies.jar /tmp/
+WORKDIR /tmp
+ENTRYPOINT ["java", "-jar", "seMethod-0.1.0.2-jar-with-dependencies.jar"]
