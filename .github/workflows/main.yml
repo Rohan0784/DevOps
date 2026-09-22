@@ -22,7 +22,9 @@ jobs:
           java-version: '11'
 
       - name: Setup network
-        run: docker network create se-methods || true
+        run: |
+          docker network create se-methods
+          docker run -d --name mongo-dbserver --network se-methods mongo:7
 
       - name: Build with Maven
         run: mvn clean package -DskipTests

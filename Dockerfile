@@ -2,7 +2,7 @@ FROM eclipse-temurin:11-jre
 
 WORKDIR /app
 
-# Copies the JAR built by Maven into the image
-COPY target/*.jar app.jar
+# Copy the self-contained JAR built by Maven.
+COPY target/se_methods-1.0-SNAPSHOT-jar-with-dependencies.jar app.jar
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
