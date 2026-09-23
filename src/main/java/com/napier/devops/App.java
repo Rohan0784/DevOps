@@ -3,6 +3,8 @@ package com.napier.devops;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.ResultSet;
 
 public class App {
     /** Connection to the MySQL database. */
@@ -44,6 +46,27 @@ public class App {
         }
 
         throw new IllegalStateException("Could not connect to database after " + retries + " attempts");
+    }
+
+    /** Return an employee by number, or null if no record is found or the lookup fails. */
+    public Employee getEmployee(int ID) {
+        String strSelect = "SELECT emp_no, first_name, last_name "
+                + "FROM employees WHERE emp_no = " + ID;
+        try (Statement stmt = con.createStatement();
+             ResultSet rset = stmt.executeQuery(strSelect)) {
+            if (rset.next()) {
+                Employee emp = new Employee();
+                emp.emp_no = rset.getInt("emp_no");
+                emp.first_name = rset.getString("first_name");
+                emp.last_name = rset.getString("last_name");
+                return emp;
+            }
+            return null;
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            System.out.println("Failed to get employee details");
+            return null;
+        }
     }
 
     /** Disconnect from the MySQL database. */
