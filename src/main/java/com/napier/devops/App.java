@@ -5,6 +5,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.ResultSet;
+import java.sql.PreparedStatement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class App {
     /** Connection to the MySQL database. */
@@ -13,9 +16,14 @@ public class App {
     public static void main(String[] args) {
         App a = new App();
         a.connect();
-        Employee emp = a.getEmployee(255530);
-        a.displayEmployee(emp);
-        a.disconnect();
+        try {
+            String role = args.length > 0 ? args[0] : "Engineer";
+            List<Employee> employees = a.getSalariesByRole(role);
+            System.out.println("Current salaries for role: " + role);
+            a.displaySalaries(employees);
+        } finally {
+            a.disconnect();
+        }
     }
 
     /** Connect to the MySQL database. */
@@ -83,6 +91,51 @@ public class App {
             System.out.println(e.getMessage());
             System.out.println("Failed to get employee details");
             return null;
+        }
+    }
+
+    /** Return employees with a current title and salary matching the given role. */
+    public List<Employee> getSalariesByRole(String role) {
+        if (role == null || role.isBlank()) {
+            throw new IllegalArgumentException("A role must be provided");
+        }
+        String sql = "SELECT employees.emp_no, employees.first_name, employees.last_name, salaries.salary "
+                + "FROM employees, salaries, titles "
+                + "WHERE employees.emp_no = salaries.emp_no "
+                + "AND employees.emp_no = titles.emp_no "
+                + "AND salaries.to_date = '9999-01-01' "
+                + "AND titles.to_date = '9999-01-01' "
+                + "AND titles.title = ? "
+                + "ORDER BY employees.emp_no ASC";
+        List<Employee> employees = new ArrayList<>();
+        try (PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setString(1, role);
+            try (ResultSet rset = stmt.executeQuery()) {
+                while (rset.next()) {
+                    Employee emp = new Employee();
+                    emp.emp_no = rset.getInt("emp_no");
+                    emp.first_name = rset.getString("first_name");
+                    emp.last_name = rset.getString("last_name");
+                    emp.salary = rset.getInt("salary");
+                    employees.add(emp);
+                }
+            }
+            return employees;
+        } catch (SQLException e) {
+            throw new IllegalStateException("Failed to get salaries for role: " + role, e);
+        }
+    }
+
+    /** Display employee numbers, names, and current salaries as a console report. */
+    public void displaySalaries(List<Employee> employees) {
+        if (employees.isEmpty()) {
+            System.out.println("No current employees found for this role.");
+            return;
+        }
+        System.out.printf("%-10s %-16s %-18s %s%n", "Employee", "First name", "Last name", "Salary");
+        for (Employee emp : employees) {
+            System.out.printf("%-10d %-16s %-18s %d%n",
+                    emp.emp_no, emp.first_name, emp.last_name, emp.salary);
         }
     }
 
