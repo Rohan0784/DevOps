@@ -50,10 +50,21 @@ public class App {
         throw new IllegalStateException("Could not connect to database after " + retries + " attempts");
     }
 
-    /** Return an employee by number, or null if no record is found or the lookup fails. */
+    /** Return current employee details, or null if no complete current record is found or the lookup fails. */
     public Employee getEmployee(int ID) {
-        String strSelect = "SELECT emp_no, first_name, last_name "
-                + "FROM employees WHERE emp_no = " + ID;
+        // Only rows with the sample database's current-entry end date are used.
+        String strSelect = "SELECT e.emp_no, e.first_name, e.last_name, "
+                + "t.title, s.salary, d.dept_name, "
+                + "CONCAT(m.first_name, ' ', m.last_name) AS manager "
+                + "FROM employees e "
+                + "JOIN titles t ON t.emp_no = e.emp_no AND t.to_date = '9999-01-01' "
+                + "JOIN salaries s ON s.emp_no = e.emp_no AND s.to_date = '9999-01-01' "
+                + "JOIN dept_emp de ON de.emp_no = e.emp_no AND de.to_date = '9999-01-01' "
+                + "JOIN departments d ON d.dept_no = de.dept_no "
+                + "JOIN dept_manager dm ON dm.dept_no = de.dept_no "
+                + "AND dm.to_date = '9999-01-01' "
+                + "JOIN employees m ON m.emp_no = dm.emp_no "
+                + "WHERE e.emp_no = " + ID;
         try (Statement stmt = con.createStatement();
              ResultSet rset = stmt.executeQuery(strSelect)) {
             if (rset.next()) {
@@ -61,6 +72,10 @@ public class App {
                 emp.emp_no = rset.getInt("emp_no");
                 emp.first_name = rset.getString("first_name");
                 emp.last_name = rset.getString("last_name");
+                emp.title = rset.getString("title");
+                emp.salary = rset.getInt("salary");
+                emp.dept_name = rset.getString("dept_name");
+                emp.manager = rset.getString("manager");
                 return emp;
             }
             return null;
