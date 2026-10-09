@@ -22,8 +22,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Build with Maven
-        run: mvn --batch-mode clean package
+      - name: Run unit tests
+        run: mvn --batch-mode clean test
+
+      - name: Package application
+        run: mvn --batch-mode package -DskipTests
 
       - name: Run Docker Compose
         run: docker compose up --build --abort-on-container-exit --exit-code-from app

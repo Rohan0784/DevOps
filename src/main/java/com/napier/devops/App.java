@@ -141,12 +141,15 @@ public class App {
 
     /** Display employee numbers, names, and current salaries as a console report. */
     public void displaySalaries(List<Employee> employees) {
-        if (employees.isEmpty()) {
+        if (employees == null || employees.isEmpty()) {
             System.out.println("No employees to display.");
             return;
         }
         System.out.printf("%-10s %-16s %-18s %s%n", "Employee", "First name", "Last name", "Salary");
         for (Employee emp : employees) {
+            if (emp == null) {
+                continue;
+            }
             System.out.printf("%-10d %-16s %-18s %d%n",
                     emp.emp_no, emp.first_name, emp.last_name, emp.salary);
         }
@@ -286,3 +289,4 @@ public class App {
         }
     }
 }
+
