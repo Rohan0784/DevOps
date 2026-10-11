@@ -15,16 +15,32 @@ public class App {
 
     public static void main(String[] args) {
         App a = new App();
-        a.connect();
+
+        if (args.length < 2) {
+            // Running directly from IntelliJ
+            a.connect("localhost:33060", 10000);
+        } else {
+            // Running through Docker
+            a.connect(args[0], Integer.parseInt(args[1]));
+        }
+
         try {
-            String departmentName = args.length > 0 ? args[0] : "Sales";
+            String departmentName =
+                    args.length > 2 ? args[2] : "Development";
+
             Department department = a.getDepartment(departmentName);
+
             if (department == null) {
                 System.out.println("Department not found: " + departmentName);
                 return;
             }
-            ArrayList<Employee> employees = a.getSalariesByDepartment(department);
-            System.out.println("Salaries for department: " + department.dept_name);
+
+            ArrayList<Employee> employees =
+                    a.getSalariesByDepartment(department);
+
+            System.out.println(
+                    "Salaries for department: " + department.dept_name);
+
             a.displaySalaries(employees);
         } finally {
             a.disconnect();
@@ -32,7 +48,7 @@ public class App {
     }
 
     /** Connect to the MySQL database. */
-    public void connect() {
+    public void connect(String location, int delay) {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException e) {
@@ -40,27 +56,36 @@ public class App {
         }
 
         int retries = 10;
+        boolean shouldWait = false;
+
         for (int attempt = 1; attempt <= retries; ++attempt) {
             System.out.println("Connecting to database...");
+
             try {
-                // Allow time for MySQL to initialize and import the employee data.
-                Thread.sleep(30000);
-                // Public key retrieval supports MySQL 8.4 authentication in this local lab.
+                if (shouldWait) {
+                    Thread.sleep(delay);
+                }
+
                 con = DriverManager.getConnection(
-                        "jdbc:mysql://db:3306/employees?useSSL=false&allowPublicKeyRetrieval=true",
-                        "root", "example");
+                        "jdbc:mysql://" + location
+                                + "/employees?allowPublicKeyRetrieval=true&useSSL=false",
+                        "root",
+                        "example");
+
                 System.out.println("Successfully connected");
                 return;
             } catch (SQLException e) {
                 System.out.println("Failed to connect to database attempt " + attempt);
                 System.out.println(e.getMessage());
+                shouldWait = true;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Connection attempt interrupted", e);
             }
         }
 
-        throw new IllegalStateException("Could not connect to database after " + retries + " attempts");
+        throw new IllegalStateException(
+                "Could not connect to database after " + retries + " attempts");
     }
 
     /** Return current employee details, or null if no complete current record is found or the lookup fails. */

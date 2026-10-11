@@ -1,4 +1,4 @@
-name: A workflow for my Hello World App
+name: DevOps CI
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
     branches: [ "main", "master", "develop" ]
 
 jobs:
-  build:
-    name: Hello world action
+  UnitTests:
+    name: Unit Tests
     runs-on: ubuntu-22.04
 
     steps:
@@ -19,14 +19,37 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: "17"
 
       - name: Run unit tests
-        run: mvn --batch-mode clean test
+        run: mvn --batch-mode -Dtest=com.napier.devops.AppTest test
+
+  Build:
+    name: Build and Docker Compose Test
+    runs-on: ubuntu-22.04
+    needs: UnitTests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: Package application
         run: mvn --batch-mode package -DskipTests
 
       - name: Run Docker Compose
+        env:
+          COMPOSE_MENU: "false"
         run: docker compose up --build --abort-on-container-exit --exit-code-from app
+
+      - name: Clean up Docker Compose
+        if: always()
+        run: docker compose down
