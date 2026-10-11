@@ -25,6 +25,15 @@ jobs:
       - name: Run unit tests
         run: mvn --batch-mode -Dtest=com.napier.devops.AppTest test
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./target/site/jacoco/jacoco.xml
+          flags: unittests
+          fail_ci_if_error: true
+          verbose: true
+
   IntegrationTests:
     name: Integration Tests
     runs-on: ubuntu-22.04
