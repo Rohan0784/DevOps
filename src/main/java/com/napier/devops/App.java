@@ -11,32 +11,39 @@ import java.sql.ResultSet;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
+@SpringBootApplication
+@RestController
 public class App {
     /** Connection to the MySQL database. */
-    private Connection con = null;
+    private static Connection con = null;
 
     public static void main(String[] args) {
-        App a = new App();
-
         if (args.length < 2) {
             // Running directly from IntelliJ
-            a.connect("localhost:33060", 10000);
+            connect("localhost:33060", 10000);
         } else {
             // Running through Docker
-            a.connect(args[0], Integer.parseInt(args[1]));
+            connect(args[0], Integer.parseInt(args[1]));
         }
 
-        try {
-            List<Employee> employees = a.getSalariesByRole("Manager");
-            a.outputEmployees(employees, "ManagerSalaries.md");
-        } finally {
-            a.disconnect();
-        }
+        App app = new App();
+        List<Employee> employees = app.getSalariesByRole("Manager");
+        app.outputEmployees(employees, "ManagerSalaries.md");
+
+        Runtime.getRuntime().addShutdownHook(new Thread(App::disconnect));
+        SpringApplication.run(App.class, args);
     }
 
     /** Connect to the MySQL database. */
-    public void connect(String location, int delay) {
+    public static void connect(String location, int delay) {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException e) {
@@ -74,6 +81,46 @@ public class App {
 
         throw new IllegalStateException(
                 "Could not connect to database after " + retries + " attempts");
+    }
+
+    /** REST endpoint for a single employee. */
+    @GetMapping("/employee")
+    public Employee employee(@RequestParam("id") String id) {
+        try {
+            return getEmployee(Integer.parseInt(id));
+        } catch (NumberFormatException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Employee id must be a number", e);
+        }
+    }
+
+    /** REST endpoint for all current salaries. */
+    @GetMapping("/salaries")
+    public List<Employee> salaries() {
+        return getAllSalaries();
+    }
+
+    /** REST endpoint for current salaries matching a title. */
+    @GetMapping("/salaries_title")
+    public List<Employee> salariesByTitle(@RequestParam("title") String title) {
+        return getSalariesByRole(title);
+    }
+
+    /** REST endpoint for one department and its current manager. */
+    @GetMapping("/department")
+    public Department department(@RequestParam("dept") String departmentName) {
+        return getDepartment(departmentName);
+    }
+
+    /** REST endpoint for current salaries in a named department. */
+    @GetMapping("/salaries_department")
+    public List<Employee> salariesByDepartment(
+            @RequestParam("dept") String departmentName) {
+        Department department = getDepartment(departmentName);
+        if (department == null) {
+            return List.of();
+        }
+        return getSalariesByDepartment(department);
     }
 
     /** Return current employee details, or null if no complete current record is found or the lookup fails. */
@@ -185,6 +232,30 @@ public class App {
             return employees;
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to get salaries for role: " + role, e);
+        }
+    }
+
+    /** Return every employee with a current salary, ordered by employee number. */
+    public List<Employee> getAllSalaries() {
+        String sql = "SELECT e.emp_no, e.first_name, e.last_name, s.salary "
+                + "FROM employees e "
+                + "JOIN salaries s ON s.emp_no = e.emp_no "
+                + "AND s.to_date = '9999-01-01' "
+                + "ORDER BY e.emp_no ASC";
+        List<Employee> employees = new ArrayList<>();
+        try (PreparedStatement stmt = con.prepareStatement(sql);
+             ResultSet rset = stmt.executeQuery()) {
+            while (rset.next()) {
+                Employee emp = new Employee();
+                emp.emp_no = rset.getInt("emp_no");
+                emp.first_name = rset.getString("first_name");
+                emp.last_name = rset.getString("last_name");
+                emp.salary = rset.getInt("salary");
+                employees.add(emp);
+            }
+            return employees;
+        } catch (SQLException e) {
+            throw new IllegalStateException("Failed to get current salaries", e);
         }
     }
 
@@ -402,7 +473,7 @@ public class App {
     }
 
     /** Disconnect from the MySQL database. */
-    public void disconnect() {
+    public static void disconnect() {
         if (con != null) {
             try {
                 con.close();

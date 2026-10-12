@@ -102,10 +102,28 @@ jobs:
       - name: Package application
         run: mvn --batch-mode package -DskipTests
 
-      - name: Run Docker Compose
+      - name: Start Docker Compose
         env:
           COMPOSE_MENU: "false"
-        run: docker compose up --build --abort-on-container-exit --exit-code-from app
+        run: docker compose up --build -d
+
+      - name: Test deployed web application
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent \
+              "http://localhost/app/employee?id=10002" \
+              | grep --quiet 'Bezalel'; then
+              echo "Web application is ready"
+              exit 0
+            fi
+
+            echo "Waiting for web application: attempt ${attempt}"
+            sleep 5
+          done
+
+          docker compose logs
+          exit 1
 
       - name: Copy Markdown reports
         run: docker compose cp app:/tmp/reports ./reports

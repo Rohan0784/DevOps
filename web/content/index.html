@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Employee salary reports</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; }
+        form { display: flex; gap: 0.5rem; align-items: end; }
+        label { display: grid; gap: 0.35rem; font-weight: bold; }
+        input, button { font: inherit; padding: 0.55rem; }
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Employee salary reports</h1>
+    <p>Enter a job title to display the current employees and salaries for that role.</p>
+    <form action="salaries_title.html" method="get">
+        <label>
+            Job title
+            <input name="title" value="Manager" required>
+        </label>
+        <button type="submit">Create report</button>
+    </form>
+</body>
+</html>

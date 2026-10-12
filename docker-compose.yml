@@ -1,9 +1,18 @@
 services:
   app:
     build: .
+    depends_on:
+      - db
 
   db:
     build: db/.
     restart: always
     ports:
       - "33060:3306"
+
+  web:
+    build: web/.
+    depends_on:
+      - app
+    ports:
+      - "80:80"

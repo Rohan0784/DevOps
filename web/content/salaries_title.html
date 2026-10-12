@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Salary report by title</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #bbb; padding: 0.5rem; text-align: left; }
+        th { background: #eee; }
+        .error { color: #a00; }
+    </style>
+</head>
+<body>
+    <p><a href="index.html">Choose another title</a></p>
+    <h1 id="heading">Salary report</h1>
+    <p id="status">Loading report...</p>
+    <table id="report" hidden>
+        <thead>
+        <tr>
+            <th>Employee</th>
+            <th>First name</th>
+            <th>Last name</th>
+            <th>Salary</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        const title = new URLSearchParams(window.location.search).get("title") || "Manager";
+        const heading = document.getElementById("heading");
+        const status = document.getElementById("status");
+        const table = document.getElementById("report");
+        const body = table.querySelector("tbody");
+
+        heading.textContent = `${title} salaries`;
+
+        fetch(`/app/salaries_title?title=${encodeURIComponent(title)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(employees => {
+                for (const employee of employees) {
+                    const row = document.createElement("tr");
+                    for (const value of [
+                        employee.emp_no,
+                        employee.first_name,
+                        employee.last_name,
+                        employee.salary
+                    ]) {
+                        const cell = document.createElement("td");
+                        cell.textContent = value;
+                        row.appendChild(cell);
+                    }
+                    body.appendChild(row);
+                }
+
+                status.textContent = `${employees.length} employee(s) found.`;
+                table.hidden = false;
+            })
+            .catch(error => {
+                status.className = "error";
+                status.textContent = `Unable to load report: ${error.message}`;
+            });
+    </script>
+</body>
+</html>
