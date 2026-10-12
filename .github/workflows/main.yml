@@ -1,4 +1,4 @@
-name: A workflow for my Hello World App
+name: DevOps CI
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
     branches: [ "main", "master", "develop" ]
 
 jobs:
-  build:
-    name: Hello world action
+  UnitTests:
+    name: Unit Tests
     runs-on: ubuntu-22.04
 
     steps:
@@ -19,11 +19,102 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: "17"
 
-      - name: Build with Maven
-        run: mvn --batch-mode clean package
+      - name: Run unit tests
+        run: mvn --batch-mode -Dtest=com.napier.devops.AppTest test
+
+  IntegrationTests:
+    name: Integration Tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Start database
+        run: docker compose up --build -d db
+
+      - name: Wait for employee database
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if docker compose exec -T db mysql \
+              -uroot -pexample \
+              -Nse "SELECT COUNT(*) FROM employees.employees" \
+              >/dev/null 2>&1; then
+              echo "Employee database is ready"
+              exit 0
+            fi
+
+            echo "Waiting for employee database: attempt ${attempt}"
+            sleep 5
+          done
+
+          docker compose logs db
+          exit 1
+
+      - name: Run integration tests
+        run: mvn --batch-mode -Dtest=com.napier.devops.AppIntegrationTest test
+
+      - name: Upload integration coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./target/site/jacoco/jacoco.xml
+          flags: integration-tests
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Clean up integration database
+        if: always()
+        run: docker compose down
+
+  Build:
+    name: Build and Docker Compose Test
+    runs-on: ubuntu-22.04
+    needs: [UnitTests, IntegrationTests]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Package application
+        run: mvn --batch-mode package -DskipTests
 
       - name: Run Docker Compose
+        env:
+          COMPOSE_MENU: "false"
         run: docker compose up --build --abort-on-container-exit --exit-code-from app
+      - name: Clean up Docker Compose
+        if: always()
+        run: docker compose down
+
+      - name: Publish latest GitHub release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest successful build
+          prerelease: false
+          make_latest: true
+          files: ./target/seMethods.jar
