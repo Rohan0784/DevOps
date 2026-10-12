@@ -2,9 +2,10 @@ name: DevOps CI
 
 on:
   push:
+    branches-ignore:
+      - reports
   pull_request:
     branches: [ "main", "master", "develop" ]
-
 jobs:
   UnitTests:
     name: Unit Tests
@@ -105,9 +106,21 @@ jobs:
         env:
           COMPOSE_MENU: "false"
         run: docker compose up --build --abort-on-container-exit --exit-code-from app
+
+      - name: Copy Markdown reports
+        run: docker compose cp app:/tmp/reports ./reports
+
       - name: Clean up Docker Compose
         if: always()
         run: docker compose down
+
+      - name: Deploy reports branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: JamesIves/github-pages-deploy-action@v4.9.0
+        with:
+          branch: reports
+          folder: reports
+          clean: true
 
       - name: Publish latest GitHub release
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'

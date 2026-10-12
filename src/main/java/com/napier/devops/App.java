@@ -1,4 +1,8 @@
 package com.napier.devops;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -24,23 +28,8 @@ public class App {
         }
 
         try {
-            String departmentName =
-                    args.length > 2 ? args[2] : "Development";
-
-            Department department = a.getDepartment(departmentName);
-
-            if (department == null) {
-                System.out.println("Department not found: " + departmentName);
-                return;
-            }
-
-            ArrayList<Employee> employees =
-                    a.getSalariesByDepartment(department);
-
-            System.out.println(
-                    "Salaries for department: " + department.dept_name);
-
-            a.displaySalaries(employees);
+            List<Employee> employees = a.getSalariesByRole("Manager");
+            a.outputEmployees(employees, "ManagerSalaries.md");
         } finally {
             a.disconnect();
         }
@@ -148,14 +137,24 @@ public class App {
         if (role == null || role.isBlank()) {
             throw new IllegalArgumentException("A role must be provided");
         }
-        String sql = "SELECT employees.emp_no, employees.first_name, employees.last_name, salaries.salary "
-                + "FROM employees, salaries, titles "
-                + "WHERE employees.emp_no = salaries.emp_no "
-                + "AND employees.emp_no = titles.emp_no "
-                + "AND salaries.to_date = '9999-01-01' "
-                + "AND titles.to_date = '9999-01-01' "
-                + "AND titles.title = ? "
-                + "ORDER BY employees.emp_no ASC";
+        String sql = "SELECT e.emp_no, e.first_name, e.last_name, "
+                + "t.title, s.salary, d.dept_no, d.dept_name, "
+                + "m.emp_no AS manager_emp_no, "
+                + "m.first_name AS manager_first_name, "
+                + "m.last_name AS manager_last_name "
+                + "FROM employees e "
+                + "JOIN salaries s ON s.emp_no = e.emp_no "
+                + "AND s.to_date = '9999-01-01' "
+                + "JOIN titles t ON t.emp_no = e.emp_no "
+                + "AND t.to_date = '9999-01-01' "
+                + "JOIN dept_emp de ON de.emp_no = e.emp_no "
+                + "AND de.to_date = '9999-01-01' "
+                + "JOIN departments d ON d.dept_no = de.dept_no "
+                + "LEFT JOIN dept_manager dm ON dm.dept_no = de.dept_no "
+                + "AND dm.to_date = '9999-01-01' "
+                + "LEFT JOIN employees m ON m.emp_no = dm.emp_no "
+                + "WHERE t.title = ? "
+                + "ORDER BY e.emp_no ASC";
         List<Employee> employees = new ArrayList<>();
         try (PreparedStatement stmt = con.prepareStatement(sql)) {
             stmt.setString(1, role);
@@ -165,7 +164,21 @@ public class App {
                     emp.emp_no = rset.getInt("emp_no");
                     emp.first_name = rset.getString("first_name");
                     emp.last_name = rset.getString("last_name");
+                    emp.title = rset.getString("title");
                     emp.salary = rset.getInt("salary");
+
+                    emp.dept = new Department();
+                    emp.dept.dept_no = rset.getString("dept_no");
+                    emp.dept.dept_name = rset.getString("dept_name");
+
+                    int managerNumber = rset.getInt("manager_emp_no");
+                    if (!rset.wasNull()) {
+                        emp.manager = new Employee();
+                        emp.manager.emp_no = managerNumber;
+                        emp.manager.first_name = rset.getString("manager_first_name");
+                        emp.manager.last_name = rset.getString("manager_last_name");
+                        emp.dept.manager = emp.manager;
+                    }
                     employees.add(emp);
                 }
             }
@@ -334,6 +347,60 @@ public class App {
             throw new IllegalStateException("Failed to add employee", e);
         }
     }
+
+    /** Write employee information to a Markdown report. */
+    public void outputEmployees(List<Employee> employees, String filename) {
+        if (employees == null || employees.isEmpty()) {
+            System.out.println("No employees to output.");
+            return;
+        }
+
+        if (filename == null || filename.isBlank()) {
+            throw new IllegalArgumentException("A report filename is required");
+        }
+
+        StringBuilder report = new StringBuilder();
+        report.append("| Emp No | First Name | Last Name | Title | Salary | Department | Manager |\r\n");
+        report.append("| --- | --- | --- | --- | --- | --- | --- |\r\n");
+
+        for (Employee emp : employees) {
+            if (emp == null) {
+                continue;
+            }
+
+            String department = emp.dept == null
+                    ? "N/A"
+                    : emp.dept.dept_name;
+
+            String manager = emp.manager == null
+                    ? "N/A"
+                    : emp.manager.first_name + " " + emp.manager.last_name;
+
+            report.append("| ").append(emp.emp_no)
+                    .append(" | ").append(emp.first_name)
+                    .append(" | ").append(emp.last_name)
+                    .append(" | ").append(emp.title)
+                    .append(" | ").append(emp.salary)
+                    .append(" | ").append(department)
+                    .append(" | ").append(manager)
+                    .append(" |\r\n");
+        }
+
+        File reportDirectory = new File("./reports");
+        if (!reportDirectory.exists() && !reportDirectory.mkdirs()) {
+            throw new IllegalStateException("Could not create reports directory");
+        }
+
+        File reportFile = new File(reportDirectory, filename);
+        try (BufferedWriter writer =
+                     new BufferedWriter(new FileWriter(reportFile))) {
+            writer.write(report.toString());
+            System.out.println("Report created: " + reportFile.getPath());
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to write employee report", e);
+        }
+    }
+
     /** Disconnect from the MySQL database. */
     public void disconnect() {
         if (con != null) {
