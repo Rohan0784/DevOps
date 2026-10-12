@@ -83,6 +83,8 @@ jobs:
     name: Build and Docker Compose Test
     runs-on: ubuntu-22.04
     needs: [UnitTests, IntegrationTests]
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -103,7 +105,16 @@ jobs:
         env:
           COMPOSE_MENU: "false"
         run: docker compose up --build --abort-on-container-exit --exit-code-from app
-
       - name: Clean up Docker Compose
         if: always()
         run: docker compose down
+
+      - name: Publish latest GitHub release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest successful build
+          prerelease: false
+          make_latest: true
+          files: ./target/seMethods.jar
