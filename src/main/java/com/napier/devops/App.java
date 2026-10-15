@@ -1,8 +1,9 @@
 package com.napier.devops;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -19,14 +20,41 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+/** Runs the employee reporting application and exposes its REST endpoints. */
 @SpringBootApplication
 @RestController
 public class App {
-    /** Connection to the MySQL database. */
-    private static Connection con = null;
+    /** Number of arguments supplied when the application runs in Docker. */
+    private static final int REQUIRED_DOCKER_ARGUMENTS = 2;
+    /** Employee number column name used in database results. */
+    private static final String EMPLOYEE_NUMBER_COLUMN = "emp_no";
+    /** First name column name used in database results. */
+    private static final String FIRST_NAME_COLUMN = "first_name";
+    /** Last name column name used in database results. */
+    private static final String LAST_NAME_COLUMN = "last_name";
+    /** Job title column name used in database results. */
+    private static final String TITLE_COLUMN = "title";
+    /** Salary column name used in database results. */
+    private static final String SALARY_COLUMN = "salary";
+    /** Department number column name used in database results. */
+    private static final String DEPARTMENT_NUMBER_COLUMN = "dept_no";
+    /** Department name column name used in database results. */
+    private static final String DEPARTMENT_NAME_COLUMN = "dept_name";
+    /** Manager first name alias used in database results. */
+    private static final String MANAGER_FIRST_NAME_COLUMN = "manager_first_name";
+    /** Manager last name alias used in database results. */
+    private static final String MANAGER_LAST_NAME_COLUMN = "manager_last_name";
+    /** Text displayed when report information is unavailable. */
+    private static final String NOT_AVAILABLE = "N/A";
+    /** Separator used between Markdown report columns. */
+    private static final String TABLE_SEPARATOR = " | ";
 
+    /** Connection to the MySQL database. */
+    private static Connection con;
+
+    /** Start the application and create the default manager salary report. */
     public static void main(String[] args) {
-        if (args.length < 2) {
+        if (args.length < REQUIRED_DOCKER_ARGUMENTS) {
             // Running directly from IntelliJ
             connect("localhost:33060", 10000);
         } else {
@@ -123,8 +151,11 @@ public class App {
         return getSalariesByDepartment(department);
     }
 
-    /** Return current employee details, or null if no complete current record is found or the lookup fails. */
-    public Employee getEmployee(int ID) {
+    /**
+     * Return current employee details.
+     * Returns null if no complete current record is found or the lookup fails.
+     */
+    public Employee getEmployee(int employeeId) {
         // Only rows with the sample database's current-entry end date are used.
         String strSelect = "SELECT e.emp_no, e.first_name, e.last_name, "
                 + "t.title, s.salary, d.dept_no, d.dept_name, "
@@ -141,29 +172,29 @@ public class App {
                 + "LEFT JOIN employees m ON m.emp_no = dm.emp_no "
                 + "WHERE e.emp_no = ?";
         try (PreparedStatement stmt = con.prepareStatement(strSelect)) {
-            stmt.setInt(1, ID);
+            stmt.setInt(1, employeeId);
             try (ResultSet rset = stmt.executeQuery()) {
                 if (rset.next()) {
                     Employee emp = new Employee();
-                    emp.emp_no = rset.getInt("emp_no");
-                    emp.first_name = rset.getString("first_name");
-                    emp.last_name = rset.getString("last_name");
-                    emp.title = rset.getString("title");
-                    emp.salary = rset.getInt("salary");
+                    emp.emp_no = rset.getInt(EMPLOYEE_NUMBER_COLUMN);
+                    emp.first_name = rset.getString(FIRST_NAME_COLUMN);
+                    emp.last_name = rset.getString(LAST_NAME_COLUMN);
+                    emp.title = rset.getString(TITLE_COLUMN);
+                    emp.salary = rset.getInt(SALARY_COLUMN);
 
-                    String departmentNumber = rset.getString("dept_no");
+                    String departmentNumber = rset.getString(DEPARTMENT_NUMBER_COLUMN);
                     if (departmentNumber != null) {
                         emp.dept = new Department();
                         emp.dept.dept_no = departmentNumber;
-                        emp.dept.dept_name = rset.getString("dept_name");
+                        emp.dept.dept_name = rset.getString(DEPARTMENT_NAME_COLUMN);
                     }
 
                     int managerNumber = rset.getInt("manager_emp_no");
                     if (!rset.wasNull()) {
                         emp.manager = new Employee();
                         emp.manager.emp_no = managerNumber;
-                        emp.manager.first_name = rset.getString("manager_first_name");
-                        emp.manager.last_name = rset.getString("manager_last_name");
+                        emp.manager.first_name = rset.getString(MANAGER_FIRST_NAME_COLUMN);
+                        emp.manager.last_name = rset.getString(MANAGER_LAST_NAME_COLUMN);
                         if (emp.dept != null) {
                             emp.dept.manager = emp.manager;
                         }
@@ -172,7 +203,7 @@ public class App {
                 }
                 return null;
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             System.out.println(e.getMessage());
             System.out.println("Failed to get employee details");
             return null;
@@ -208,22 +239,22 @@ public class App {
             try (ResultSet rset = stmt.executeQuery()) {
                 while (rset.next()) {
                     Employee emp = new Employee();
-                    emp.emp_no = rset.getInt("emp_no");
-                    emp.first_name = rset.getString("first_name");
-                    emp.last_name = rset.getString("last_name");
-                    emp.title = rset.getString("title");
-                    emp.salary = rset.getInt("salary");
+                    emp.emp_no = rset.getInt(EMPLOYEE_NUMBER_COLUMN);
+                    emp.first_name = rset.getString(FIRST_NAME_COLUMN);
+                    emp.last_name = rset.getString(LAST_NAME_COLUMN);
+                    emp.title = rset.getString(TITLE_COLUMN);
+                    emp.salary = rset.getInt(SALARY_COLUMN);
 
                     emp.dept = new Department();
-                    emp.dept.dept_no = rset.getString("dept_no");
-                    emp.dept.dept_name = rset.getString("dept_name");
+                    emp.dept.dept_no = rset.getString(DEPARTMENT_NUMBER_COLUMN);
+                    emp.dept.dept_name = rset.getString(DEPARTMENT_NAME_COLUMN);
 
                     int managerNumber = rset.getInt("manager_emp_no");
                     if (!rset.wasNull()) {
                         emp.manager = new Employee();
                         emp.manager.emp_no = managerNumber;
-                        emp.manager.first_name = rset.getString("manager_first_name");
-                        emp.manager.last_name = rset.getString("manager_last_name");
+                        emp.manager.first_name = rset.getString(MANAGER_FIRST_NAME_COLUMN);
+                        emp.manager.last_name = rset.getString(MANAGER_LAST_NAME_COLUMN);
                         emp.dept.manager = emp.manager;
                     }
                     employees.add(emp);
@@ -247,10 +278,10 @@ public class App {
              ResultSet rset = stmt.executeQuery()) {
             while (rset.next()) {
                 Employee emp = new Employee();
-                emp.emp_no = rset.getInt("emp_no");
-                emp.first_name = rset.getString("first_name");
-                emp.last_name = rset.getString("last_name");
-                emp.salary = rset.getInt("salary");
+                emp.emp_no = rset.getInt(EMPLOYEE_NUMBER_COLUMN);
+                emp.first_name = rset.getString(FIRST_NAME_COLUMN);
+                emp.last_name = rset.getString(LAST_NAME_COLUMN);
+                emp.salary = rset.getInt(SALARY_COLUMN);
                 employees.add(emp);
             }
             return employees;
@@ -284,10 +315,10 @@ public class App {
                     + emp.last_name + "\n"
                     + emp.title + "\n"
                     + "Salary:" + emp.salary + "\n"
-                    + (emp.dept == null ? "N/A" : emp.dept.dept_name) + "\n"
+                    + (emp.dept == null ? NOT_AVAILABLE : emp.dept.dept_name) + "\n"
                     + "Manager: "
                     + (emp.manager == null
-                        ? "N/A"
+                        ? NOT_AVAILABLE
                         : emp.manager.first_name + " " + emp.manager.last_name)
                     + "\n");
         }
@@ -297,8 +328,8 @@ public class App {
      * Find a department by name, including its current manager.
      * @return the department, or null when the name is not found
      */
-    public Department getDepartment(String dept_name) {
-        if (dept_name == null || dept_name.isBlank()) {
+    public Department getDepartment(String departmentName) {
+        if (departmentName == null || departmentName.isBlank()) {
             return null;
         }
         String sql = "SELECT d.dept_no, d.dept_name, m.emp_no AS manager_emp_no, "
@@ -309,20 +340,20 @@ public class App {
                 + "LEFT JOIN employees m ON m.emp_no = dm.emp_no "
                 + "WHERE d.dept_name = ?";
         try (PreparedStatement stmt = con.prepareStatement(sql)) {
-            stmt.setString(1, dept_name);
+            stmt.setString(1, departmentName);
             try (ResultSet rset = stmt.executeQuery()) {
                 if (!rset.next()) {
                     return null;
                 }
                 Department dept = new Department();
-                dept.dept_no = rset.getString("dept_no");
-                dept.dept_name = rset.getString("dept_name");
+                dept.dept_no = rset.getString(DEPARTMENT_NUMBER_COLUMN);
+                dept.dept_name = rset.getString(DEPARTMENT_NAME_COLUMN);
                 int managerId = rset.getInt("manager_emp_no");
                 if (!rset.wasNull()) {
                     dept.manager = new Employee();
                     dept.manager.emp_no = managerId;
-                    dept.manager.first_name = rset.getString("manager_first_name");
-                    dept.manager.last_name = rset.getString("manager_last_name");
+                    dept.manager.first_name = rset.getString(MANAGER_FIRST_NAME_COLUMN);
+                    dept.manager.last_name = rset.getString(MANAGER_LAST_NAME_COLUMN);
                 }
                 return dept;
             }
@@ -335,7 +366,7 @@ public class App {
      * Return current salaries for employees linked to the department, ordered by ID.
      * Matches the Lab 5 query, including historical department memberships.
      */
-    public ArrayList<Employee> getSalariesByDepartment(Department dept) {
+    public List<Employee> getSalariesByDepartment(Department dept) {
         if (dept == null || dept.dept_no == null || dept.dept_no.isBlank()) {
             throw new IllegalArgumentException("A department number is required");
         }
@@ -347,16 +378,16 @@ public class App {
                 + "AND salaries.to_date = '9999-01-01' "
                 + "AND departments.dept_no = ? "
                 + "ORDER BY employees.emp_no ASC";
-        ArrayList<Employee> employees = new ArrayList<>();
+        List<Employee> employees = new ArrayList<>();
         try (PreparedStatement stmt = con.prepareStatement(sql)) {
             stmt.setString(1, dept.dept_no);
             try (ResultSet rset = stmt.executeQuery()) {
                 while (rset.next()) {
                     Employee emp = new Employee();
-                    emp.emp_no = rset.getInt("emp_no");
-                    emp.first_name = rset.getString("first_name");
-                    emp.last_name = rset.getString("last_name");
-                    emp.salary = rset.getInt("salary");
+                    emp.emp_no = rset.getInt(EMPLOYEE_NUMBER_COLUMN);
+                    emp.first_name = rset.getString(FIRST_NAME_COLUMN);
+                    emp.last_name = rset.getString(LAST_NAME_COLUMN);
+                    emp.salary = rset.getInt(SALARY_COLUMN);
                     employees.add(emp);
                 }
             }
@@ -371,9 +402,9 @@ public class App {
      * Names are not unique: when several match, return the lowest employee number.
      * @return the employee with their department and manager, or null if not found
      */
-    public Employee getEmployee(String first_name, String last_name) {
-        if (first_name == null || last_name == null
-                || first_name.isBlank() || last_name.isBlank()) {
+    public Employee getEmployee(String firstName, String lastName) {
+        if (firstName == null || lastName == null
+                || firstName.isBlank() || lastName.isBlank()) {
             return null;
         }
         String sql = "SELECT e.emp_no FROM employees e "
@@ -383,13 +414,13 @@ public class App {
                 + "WHERE e.first_name = ? AND e.last_name = ? ORDER BY e.emp_no ASC LIMIT 1";
         int employeeId;
         try (PreparedStatement stmt = con.prepareStatement(sql)) {
-            stmt.setString(1, first_name);
-            stmt.setString(2, last_name);
+            stmt.setString(1, firstName);
+            stmt.setString(2, lastName);
             try (ResultSet rset = stmt.executeQuery()) {
                 if (!rset.next()) {
                     return null;
                 }
-                employeeId = rset.getInt("emp_no");
+                employeeId = rset.getInt(EMPLOYEE_NUMBER_COLUMN);
             }
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to find employee by name", e);
@@ -430,9 +461,9 @@ public class App {
             throw new IllegalArgumentException("A report filename is required");
         }
 
-        StringBuilder report = new StringBuilder();
-        report.append("| Emp No | First Name | Last Name | Title | Salary | Department | Manager |\r\n");
-        report.append("| --- | --- | --- | --- | --- | --- | --- |\r\n");
+        StringBuilder report = new StringBuilder(512);
+        report.append("| Emp No | First Name | Last Name | Title | Salary | Department | Manager |\r\n"
+                + "| --- | --- | --- | --- | --- | --- | --- |\r\n");
 
         for (Employee emp : employees) {
             if (emp == null) {
@@ -440,20 +471,20 @@ public class App {
             }
 
             String department = emp.dept == null
-                    ? "N/A"
+                    ? NOT_AVAILABLE
                     : emp.dept.dept_name;
 
             String manager = emp.manager == null
-                    ? "N/A"
+                    ? NOT_AVAILABLE
                     : emp.manager.first_name + " " + emp.manager.last_name;
 
             report.append("| ").append(emp.emp_no)
-                    .append(" | ").append(emp.first_name)
-                    .append(" | ").append(emp.last_name)
-                    .append(" | ").append(emp.title)
-                    .append(" | ").append(emp.salary)
-                    .append(" | ").append(department)
-                    .append(" | ").append(manager)
+                    .append(TABLE_SEPARATOR).append(emp.first_name)
+                    .append(TABLE_SEPARATOR).append(emp.last_name)
+                    .append(TABLE_SEPARATOR).append(emp.title)
+                    .append(TABLE_SEPARATOR).append(emp.salary)
+                    .append(TABLE_SEPARATOR).append(department)
+                    .append(TABLE_SEPARATOR).append(manager)
                     .append(" |\r\n");
         }
 
@@ -464,7 +495,7 @@ public class App {
 
         File reportFile = new File(reportDirectory, filename);
         try (BufferedWriter writer =
-                     new BufferedWriter(new FileWriter(reportFile))) {
+                     Files.newBufferedWriter(reportFile.toPath(), StandardCharsets.UTF_8)) {
             writer.write(report.toString());
             System.out.println("Report created: " + reportFile.getPath());
         } catch (IOException e) {
