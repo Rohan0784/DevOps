@@ -4,42 +4,58 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.List;
 
-public class AppTest
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
+/** Unit tests for employee report display methods. */
+class AppTest
 {
-    static App app;
+    /** Application instance used by the unit tests. */
+    private static App app;
 
+    /** Create the application used by all unit tests. */
     @BeforeAll
     static void init()
     {
         app = new App();
     }
 
+    /** A null salary list should be handled safely. */
     @Test
     void displaySalariesTestNull()
     {
-        app.displaySalaries(null);
+        assertDoesNotThrow(
+                () -> app.displaySalaries(null),
+                "Displaying a null salary list should not fail");
     }
 
+    /** An empty salary list should be handled safely. */
     @Test
     void displaySalariesTestEmpty()
     {
-        ArrayList<Employee> employees = new ArrayList<>();
-        app.displaySalaries(employees);
+        List<Employee> employees = new ArrayList<>();
+        assertDoesNotThrow(
+                () -> app.displaySalaries(employees),
+                "Displaying an empty salary list should not fail");
     }
 
+    /** Null entries in a salary list should be skipped safely. */
     @Test
     void displaySalariesTestContainsNull()
     {
-        ArrayList<Employee> employees = new ArrayList<>();
+        List<Employee> employees = new ArrayList<>();
         employees.add(null);
-        app.displaySalaries(employees);
+        assertDoesNotThrow(
+                () -> app.displaySalaries(employees),
+                "Displaying a salary list containing null should not fail");
     }
 
+    /** A populated salary list should be displayed safely. */
     @Test
     void displaySalariesTestNormal()
     {
-        ArrayList<Employee> employees = new ArrayList<>();
+        List<Employee> employees = new ArrayList<>();
         Employee emp = new Employee();
         emp.emp_no = 1;
         emp.first_name = "Kevin";
@@ -47,15 +63,21 @@ public class AppTest
         emp.title = "Engineer";
         emp.salary = 55000;
         employees.add(emp);
-        app.displaySalaries(employees);
+        assertDoesNotThrow(
+                () -> app.displaySalaries(employees),
+                "Displaying a normal salary list should not fail");
     }
 
+    /** A null employee should be handled safely. */
     @Test
     void displayEmployeeTestNull()
     {
-        app.displayEmployee(null);
+        assertDoesNotThrow(
+                () -> app.displayEmployee(null),
+                "Displaying a null employee should not fail");
     }
 
+    /** A complete employee should be displayed safely. */
     @Test
     void displayEmployeeTestNormal()
     {
@@ -77,9 +99,12 @@ public class AppTest
         emp.dept = dept;
         emp.manager = manager;
 
-        app.displayEmployee(emp);
+        assertDoesNotThrow(
+                () -> app.displayEmployee(emp),
+                "Displaying a complete employee should not fail");
     }
 
+    /** Missing department and manager details should be handled safely. */
     @Test
     void displayEmployeeTestMissingDepartmentAndManager()
     {
@@ -90,6 +115,8 @@ public class AppTest
         emp.title = "Engineer";
         emp.salary = 55000;
 
-        app.displayEmployee(emp);
+        assertDoesNotThrow(
+                () -> app.displayEmployee(emp),
+                "Displaying an employee without department and manager should not fail");
     }
 }
